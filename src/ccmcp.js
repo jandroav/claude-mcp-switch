@@ -1,13 +1,19 @@
 #!/usr/bin/env node
-/* ccmcp - Claude Code MCP switcher (macOS/Linux/Windows)
+/* claude-mcp-switch - Claude Code MCP switcher (macOS/Linux/Windows)
  * List, enable, disable MCP servers in Claude Code/Claude Desktop config.
  * Zero-dependency Node.js CLI (Node >=18)
  */
 
+const path = require('path');
 const { resolveConfigPath, readJson, backupFile, writeJsonAtomic, EX_IO, EX_JSON } = require('./lib/config');
 const { detectSchema, enumerateServers, performEnable, performDisable } = require('./lib/schema');
 const { matchIdentifier, serializeSuggestions } = require('./lib/matcher');
 const { COLOR, println, eprintln, printBanner, printList, printSuggestionsTable, help } = require('./lib/ui');
+
+// Read version from package.json
+const pkg = require(path.join(__dirname, '..', 'package.json'));
+const VERSION = pkg.version;
+const NAME = pkg.name;
 
 const EX_OK = 0;
 const EX_NO_MATCH = 2;
@@ -148,7 +154,7 @@ function main() {
     process.exit(EX_OK);
   }
   if (args.version) {
-    println(COLOR.bold(COLOR.cyan('ccmcp 0.1.0')));
+    println(COLOR.bold(COLOR.cyan(`${NAME} ${VERSION}`)));
     process.exit(EX_OK);
   }
 

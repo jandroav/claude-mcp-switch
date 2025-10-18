@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "npx CLI to list/enable/disable Claude Code MCP servers (macOS/Linux/Windows)",
   "bin": {
+    "claude-mcp-switch": "./src/ccmcp.js",
     "ccmcp": "./src/ccmcp.js"
   },
   "type": "commonjs",
