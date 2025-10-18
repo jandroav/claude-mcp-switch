@@ -1,0 +1,22 @@
+{
+  "name": "ccmcp",
+  "version": "0.1.0",
+  "description": "npx CLI to list/enable/disable Claude Code MCP servers (macOS/Linux)",
+  "bin": {
+    "ccmcp": "./src/ccmcp.js"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "mcp",
+    "cli",
+    "npx",
+    "config"
+  ],
+  "author": "Jandro",
+  "license": "MIT"
+}
