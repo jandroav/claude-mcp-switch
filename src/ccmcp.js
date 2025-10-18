@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* ccmcp - Claude Code MCP switcher (macOS/Linux)
+/* ccmcp - Claude Code MCP switcher (macOS/Linux/Windows)
  * List, enable, disable MCP servers in Claude Code/Claude Desktop config.
  * Zero-dependency Node.js CLI (Node >=18)
  */
@@ -67,6 +67,8 @@ Config discovery:
              ~/.claude/settings.json
     - Linux: ~/.config/claude/claude_desktop_config.json
              ~/.claude/settings.json
+    - Windows: %APPDATA%/Claude/claude_desktop_config.json
+               %USERPROFILE%/.claude/settings.json
 
 Exit codes:
   0 success
@@ -99,6 +101,7 @@ function detectPlatform() {
   const pf = process.platform;
   if (pf === 'darwin') return 'mac';
   if (pf === 'linux') return 'linux';
+  if (pf === 'win32') return 'win';
   return 'other';
 }
 
@@ -116,6 +119,10 @@ function candidateConfigPaths() {
       out.push(path.join(os.homedir(), '.claude', 'settings.json'));
     } else if (plat === 'linux') {
       out.push(path.join(os.homedir(), '.config', 'claude', 'claude_desktop_config.json'));
+      out.push(path.join(os.homedir(), '.claude', 'settings.json'));
+    } else if (plat === 'win') {
+      const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+      out.push(path.join(appData, 'Claude', 'claude_desktop_config.json'));
       out.push(path.join(os.homedir(), '.claude', 'settings.json'));
     }
   }

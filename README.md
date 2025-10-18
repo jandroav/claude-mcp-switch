@@ -1,7 +1,7 @@
 # ccmcp - Claude Code MCP switcher
 
 A zero-dependency npx CLI to list, enable, and disable Claude Code/Claude Desktop MCP servers.
-Supports macOS and Linux, with config discovery via CLAUDE_CONFIG_DIR or OS defaults.
+Supports macOS, Linux, and Windows, with config discovery via CLAUDE_CONFIG_DIR or OS defaults.
 
 ## Features
 - List active and disabled MCP servers
@@ -22,6 +22,8 @@ Supports macOS and Linux, with config discovery via CLAUDE_CONFIG_DIR or OS defa
 - Local development:
   - node ./src/ccmcp.js list
   - node ./src/ccmcp.js enable github --config ~/.claude/settings.json
+  - Windows (CMD): node .\src\ccmcp.js enable github --config %USERPROFILE%\.claude\settings.json
+  - Windows (PowerShell): node .\src\ccmcp.js enable github --config "$env:USERPROFILE\.claude\settings.json"
 
 ## Commands
 - list [--json] [--config PATH]
@@ -43,10 +45,15 @@ Order of precedence:
    - $CLAUDE_CONFIG_DIR/settings.json
    - $CLAUDE_CONFIG_DIR/claude_desktop_config.json
 3) OS defaults:
-   - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
-           ~/.claude/settings.json
-   - Linux: ~/.config/claude/claude_desktop_config.json
-            ~/.claude/settings.json
+   - macOS:
+     - ~/Library/Application Support/Claude/claude_desktop_config.json
+     - ~/.claude/settings.json
+   - Linux:
+     - ~/.config/claude/claude_desktop_config.json
+     - ~/.claude/settings.json
+   - Windows:
+     - %APPDATA%\Claude\claude_desktop_config.json
+     - %USERPROFILE%\.claude\settings.json
 If none found, exit 4 with guidance.
 
 ## Supported schemas
@@ -99,7 +106,7 @@ If none found, exit 4 with guidance.
 - Ensure config is valid JSON (check with jq).
 - If array-shaped mcpServers lacks enabled, add "enabled": true/false or convert to object.
 - Use --config to point directly at your settings.json.
-- If using Windows, paths may differ; current support targets macOS/Linux.
+- On Windows, defaults are `%APPDATA%\Claude\claude_desktop_config.json` and `%USERPROFILE%\.claude\settings.json`. Quote paths with spaces (e.g., "Application Support"). You can also set `CLAUDE_CONFIG_DIR` and use `%CLAUDE_CONFIG_DIR%\settings.json`.
 
 ## Reference
 - Claude Code MCP: https://docs.claude.com/en/docs/claude-code/mcp
@@ -117,3 +124,38 @@ If none found, exit 4 with guidance.
 
 ## License
 MIT
+
+## Release and Publish
+
+Use the included GitHub Action to version, create a GitHub Release, and publish to npm (usable via npx).
+
+- Workflow file: [release.yml](.github/workflows/release.yml:1)
+- Package entry: [package.json](./package.json:1)
+
+Prerequisites:
+- Create a repository secret named NPM_TOKEN containing an npm access token with publish rights to the package scope.
+- Ensure the package name in [package.json](./package.json:1) is available on npm (or within your org scope).
+
+Steps:
+- Manually trigger the workflow (Actions &gt; Version and Release &gt; Run workflow).
+- Choose release_type: patch, minor, or major.
+- The workflow will:
+  - Run npm version &lt;type&gt; (creates a commit and Git tag).
+  - Push the version commit and tag.
+  - Publish the package to npm using NPM_TOKEN.
+  - Create a GitHub Release for the new tag with auto-generated notes.
+
+Result:
+- Users can install and run via npm/npx:
+  - npx ccmcp list
+  - npm i -g ccmcp &amp;&amp; ccmcp list
+
+Notes:
+- The workflow uses Node 18 and publishes with public access.
+- The files published are restricted by the "files" array in [package.json](./package.json:1).
+- If you prefer automated releases on tag push, extend [release.yml](.github/workflows/release.yml:1) with:
+  on:
+    push:
+      tags:
+        - 'v*'
+  and push an annotated tag like v0.1.1.
