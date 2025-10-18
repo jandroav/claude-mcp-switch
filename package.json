@@ -11,11 +11,11 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test \"test/unit/**/*.test.js\" \"test/integration/**/*.test.js\"",
-    "test:unit": "node --test \"test/unit/**/*.test.js\"",
-    "test:integration": "node --test \"test/integration/**/*.test.js\"",
-    "test:watch": "node --test --watch \"test/unit/**/*.test.js\" \"test/integration/**/*.test.js\"",
-    "test:coverage": "node --test --experimental-test-coverage \"test/unit/**/*.test.js\" \"test/integration/**/*.test.js\""
+    "test": "node scripts/run-tests.js test/unit test/integration",
+    "test:unit": "node scripts/run-tests.js test/unit",
+    "test:integration": "node scripts/run-tests.js test/integration",
+    "test:watch": "node scripts/run-tests.js --watch test/unit test/integration",
+    "test:coverage": "node scripts/run-tests.js --experimental-test-coverage test/unit test/integration"
   },
   "keywords": [
     "claude",
@@ -28,6 +28,7 @@
   ],
   "files": [
     "src",
+    "scripts",
     "README.md",
     "package.json"
   ],
