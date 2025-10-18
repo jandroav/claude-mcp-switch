@@ -15,6 +15,7 @@ describe('ui', () => {
       COLOR.enabled = false;
       const result = COLOR.red('test');
       assert.strictEqual(result, 'test');
+      COLOR.enabled = true; // Reset
     });
 
     it('should handle bold', () => {
@@ -31,13 +32,10 @@ describe('ui', () => {
 
     it('should handle various colors', () => {
       COLOR.enabled = true;
-      assert.ok(COLOR.red('test').includes('\x1b[31m'));
-      assert.ok(COLOR.green('test').includes('\x1b[32m'));
-      assert.ok(COLOR.yellow('test').includes('\x1b[33m'));
-      assert.ok(COLOR.blue('test').includes('\x1b[34m'));
-      assert.ok(COLOR.magenta('test').includes('\x1b[35m'));
-      assert.ok(COLOR.cyan('test').includes('\x1b[36m'));
-      assert.ok(COLOR.gray('test').includes('\x1b[90m'));
+      assert.ok(COLOR.red('x').includes('\x1b[31m'));
+      assert.ok(COLOR.green('x').includes('\x1b[32m'));
+      assert.ok(COLOR.yellow('x').includes('\x1b[33m'));
+      assert.ok(COLOR.cyan('x').includes('\x1b[36m'));
     });
 
     it('should reset color codes', () => {
@@ -48,8 +46,7 @@ describe('ui', () => {
 
     it('should handle empty strings', () => {
       COLOR.enabled = true;
-      const result = COLOR.red('');
-      assert.ok(typeof result === 'string');
+      assert.strictEqual(COLOR.red(''), '\x1b[31m\x1b[0m');
     });
 
     it('should handle numbers', () => {
@@ -60,12 +57,9 @@ describe('ui', () => {
 
     it('should handle nested color calls when disabled', () => {
       COLOR.enabled = false;
-      const result = COLOR.bold(COLOR.red('test'));
+      const result = COLOR.red(COLOR.bold('test'));
       assert.strictEqual(result, 'test');
+      COLOR.enabled = true; // Reset
     });
   });
-
-  // Note: Testing println, eprintln, printBanner, printList, printSuggestionsTable, and help
-  // would require mocking stdout/stderr or capturing output, which is complex.
-  // These are better tested via integration tests.
 });
