@@ -25,11 +25,11 @@ function eprintln(s = '') {
 
 function printBanner() {
   const logo = [
-    '   ____   ____  __  __ ____  ',
-    '  / ___| / ___||  \\/  |  _ \\ ',
-    " | |     \\___ \\| |\\/| | |_) |",
-    ' | |___   ___) | |  | |  __/ ',
-    '  \\____| |____/|_|  |_|_|    '
+    '   ____    ____  __  __ ____  ',
+    '  / ___|  / ___||  \\/  |  _ \\ ',
+    " | |     | |    | |\\/| | |_) |",
+    ' | |___  | |___ | |  | |  __/ ',
+    '  \\____|  \\____||_|  |_|_|    '
   ];
   const title = 'Claude Code MCP switcher';
   for (const line of logo) println(COLOR.cyan(COLOR.bold(line)));
