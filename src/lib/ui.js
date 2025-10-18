@@ -152,34 +152,35 @@ function help(args) {
   printBanner();
   const msg = `
 ${COLOR.bold('Usage:')}
-  ccmcp list [--json] [--config PATH] [--no-color]
-  ccmcp enable <identifier> [--config PATH] [--dry-run] [--json] [--no-color]
-  ccmcp disable <identifier> [--config PATH] [--dry-run] [--json] [--no-color]
+  ccmcp list [--json] [--no-color]
+  ccmcp enable <name> [--dry-run] [--json] [--no-color]
+  ccmcp disable <name> [--dry-run] [--json] [--no-color]
   ccmcp --help | --version
 
-Identifier resolution (case-insensitive exact match):
-  Priority: id > key > name
+${COLOR.bold('Commands:')}
+  list      List all MCP servers (active and disabled)
+  enable    Re-enable a previously disabled server
+  disable   Disable a server (stores config for later re-enabling)
 
-Config discovery (in priority order):
-  1. --config PATH (explicit override)
-  2. ./.claude/.claude.json (project-level user config)
-  3. ./.mcp.json (project-level shared config)
-  4. $CLAUDE_CONFIG_DIR/settings.json (if CLAUDE_CONFIG_DIR is set)
-  5. $CLAUDE_CONFIG_DIR/claude_desktop_config.json
-  6. OS defaults:
-     - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
-              ~/.claude/settings.json
-     - Linux: ~/.config/claude/claude_desktop_config.json
-              ~/.claude/settings.json
-     - Windows: %APPDATA%/Claude/claude_desktop_config.json
-                %USERPROFILE%/.claude/settings.json
+${COLOR.bold('How it works:')}
+  - Uses ${COLOR.cyan('claude mcp')} CLI commands as source of truth
+  - Disabled server configs stored in ${COLOR.dim('~/.claude-mcp-switch/')}
+  - Always in sync with your actual Claude Code configuration
 
-Exit codes:
+${COLOR.bold('Requirements:')}
+  - Node.js >= 18
+  - ${COLOR.cyan('claude')} CLI installed and available in PATH
+
+${COLOR.bold('Exit codes:')}
   0 success
-  2 no match
-  3 ambiguous match
-  4 IO or config not found
-  5 invalid JSON / unsupported schema
+  2 server not found
+  4 error executing claude CLI command
+
+${COLOR.bold('Examples:')}
+  ccmcp list
+  ccmcp disable playwright
+  ccmcp enable playwright --dry-run
+  ccmcp list --json
 `.trim();
   println(msg);
 }
