@@ -1,6 +1,6 @@
 {
   "name": "claude-mcp-switch",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "npx CLI to list/enable/disable Claude Code MCP servers using claude CLI wrapper",
   "bin": {
     "claude-mcp-switch": "./src/ccmcp.js",
