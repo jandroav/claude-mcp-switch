@@ -30,11 +30,30 @@ Supports macOS, Linux, and Windows, with config discovery via CLAUDE_CONFIG_DIR 
   1. List servers: `npx ccmcp list`
   2. Enable server: `npx ccmcp enable github`
   3. Disable server: `npx ccmcp disable github --dry-run`
-- **Local development**:
-  - node ./src/ccmcp.js list
-  - node ./src/ccmcp.js enable github --config ~/.claude/settings.json
-  - Windows (CMD): node .\src\ccmcp.js enable github --config %USERPROFILE%\.claude\settings.json
-  - Windows (PowerShell): node .\src\ccmcp.js enable github --config "$env:USERPROFILE\.claude\settings.json"
+- **Local development (no registry)**:
+  1. Clone the repo locally:
+     - `git clone <repo-url>` and `cd claude-mcp-switch`
+  2. Ensure the CLI entrypoint is executable:
+     - macOS/Linux: `chmod +x ./src/ccmcp.js` (shebang is present in [src/ccmcp.js](src/ccmcp.js:1))
+  3. Link globally to use the `ccmcp` command anywhere:
+     - `npm link` (uses the bin mapping in [package.json](./package.json:6))
+  4. Use the tool:
+     - `ccmcp list`
+     - `ccmcp enable github`
+     - Disable color during tests: `ccmcp list --no-color`
+  5. Unlink when done:
+     - `npm unlink -g ccmcp` (or run `npm unlink` inside the project)
+
+- **Alternative: run directly without linking**
+  - macOS/Linux:
+    - `node ./src/ccmcp.js list`
+    - `node ./src/ccmcp.js enable github --config ~/.claude/settings.json`
+  - Windows (CMD):
+    - `node .\src\ccmcp.js list`
+    - `node .\src\ccmcp.js enable github --config %USERPROFILE%\.claude\settings.json`
+  - Windows (PowerShell):
+    - `node .\src\ccmcp.js list`
+    - `node .\src\ccmcp.js enable github --config "$env:USERPROFILE\.claude\settings.json"`
 
 ## 💻 Commands
 - list [--json] [--config PATH] [--no-color]
