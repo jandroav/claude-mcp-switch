@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['18', '20', '22']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Run full test suite
+        run: npm test
+
+  lint:
+    name: Lint and Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level=moderate || true
+
+      - name: Verify package files
+        run: |
+          echo "Checking required files..."
+          test -f src/ccmcp.js || (echo "Missing src/ccmcp.js" && exit 1)
+          test -f package.json || (echo "Missing package.json" && exit 1)
+          test -f README.md || (echo "Missing README.md" && exit 1)
+          echo "All required files present"
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Test CLI execution
+        run: |
+          node ./src/ccmcp.js --version || true
+          node ./src/ccmcp.js --help
+
+      - name: Pack npm package
+        run: npm pack
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: '*.tgz'
+          retention-days: 7
+
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [test, lint, build]
+    if: always()
+
+    steps:
+      - name: Check CI status
+        run: |
+          if [[ "${{ needs.test.result }}" == "success" && "${{ needs.lint.result }}" == "success" && "${{ needs.build.result }}" == "success" ]]; then
+            echo "✅ All CI checks passed!"
+            exit 0
+          else
+            echo "❌ Some CI checks failed:"
+            echo "  - Test: ${{ needs.test.result }}"
+            echo "  - Lint: ${{ needs.lint.result }}"
+            echo "  - Build: ${{ needs.build.result }}"
+            exit 1
+          fi
+
+      - name: Post PR comment (on failure)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = {
+              test: '${{ needs.test.result }}',
+              lint: '${{ needs.lint.result }}',
+              build: '${{ needs.build.result }}'
+            };
+
+            const failed = Object.entries(result)
+              .filter(([_, status]) => status !== 'success')
+              .map(([name, status]) => `- ${name}: ${status}`)
+              .join('\n');
+
+            const body = `## ❌ CI Check Failed\n\n${failed}\n\nPlease review the workflow logs for details.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

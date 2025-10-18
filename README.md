@@ -184,37 +184,139 @@ npm run test:coverage
 ## 📄 License
 MIT
 
-## 🎉 Release and Publish
+## 🤖 GitHub Workflows
 
-Use the included GitHub Action to version, create a GitHub Release, and publish to npm (usable via npx).
+This project includes comprehensive CI/CD automation with multiple GitHub Actions workflows:
 
-- Workflow file: [release.yml](.github/workflows/release.yml:1)
+### 🔄 CI Workflow ([ci.yml](.github/workflows/ci.yml))
+
+Runs automatically on every pull request and push to main/master:
+
+- **Multi-platform testing**: Tests on Ubuntu, macOS, and Windows
+- **Multi-version Node.js**: Tests with Node 18, 20, and 22
+- **Test suite**: Runs unit and integration tests
+- **Code quality checks**: Validates package structure and security
+- **Package building**: Creates npm package artifact
+- **PR comments**: Automatically comments on PRs when checks fail
+
+### 📝 Release Drafter ([release-drafter.yml](.github/workflows/release-drafter.yml))
+
+Automatically maintains draft releases with changelogs based on merged PRs:
+
+- **Auto-categorization**: Organizes changes by type (features, bugs, maintenance, etc.)
+- **Version inference**: Automatically suggests next version based on PR labels
+- **Changelog generation**: Creates formatted changelog from PR titles
+- **Contributor tracking**: Lists all contributors to the release
+
+#### Label Categories:
+- 💥 Breaking Changes: `breaking-change`, `breaking`, `major`
+- 🚀 Features: `feature`, `enhancement`
+- 🐛 Bug Fixes: `bug`, `fix`, `regression`
+- 🔒 Security: `security`, `vulnerability`
+- ⚡ Performance: `performance`, `optimization`
+- 🧰 Maintenance: `chore`, `refactor`, `deps`
+- 🤖 CI/CD: `ci`, `cd`, `workflow`, `github-actions`
+- 📝 Documentation: `docs`, `documentation`
+- 🧪 Testing: `test`, `testing`
+
+### 🏷️ PR Labeler ([pr-labeler.yml](.github/workflows/pr-labeler.yml))
+
+Automatically labels pull requests based on:
+
+- **File paths**: Labels based on which files are changed (docs, tests, CI, etc.)
+- **PR size**: Adds size labels (XS, S, M, L, XL) based on lines changed
+- **Conventional commits**: Detects commit types in PR titles (feat, fix, docs, etc.)
+- **Description check**: Warns if PR description is missing or too short
+
+Configuration file: [labeler.yml](.github/labeler.yml)
+
+### 🎉 Release and Publish ([release.yml](.github/workflows/release.yml))
+
+Manual workflow to create releases and publish to npm:
+
+- Workflow file: [release.yml](.github/workflows/release.yml)
 - Package entry: [package.json](./package.json:1)
 
-Prerequisites:
-- Create a repository secret named NPM_TOKEN containing an npm access token with publish rights to the package scope.
-- Ensure the package name in [package.json](./package.json:1) is available on npm (or within your org scope).
+#### Prerequisites:
+- Create a repository secret named `NPM_TOKEN` containing an npm access token with publish rights
+- Ensure the package name in [package.json](./package.json:1) is available on npm
 
-Steps:
-- Manually trigger the workflow (Actions &gt; Version and Release &gt; Run workflow).
-- Choose release_type: patch, minor, or major.
-- The workflow will:
-  - Run npm version &lt;type&gt; (creates a commit and Git tag).
-  - Push the version commit and tag.
-  - Publish the package to npm using NPM_TOKEN.
-  - Create a GitHub Release for the new tag with auto-generated notes.
+#### Steps:
+1. Go to Actions → Version and Release → Run workflow
+2. Choose options:
+   - **release_type**: `patch`, `minor`, or `major`
+   - **skip_npm**: Skip npm publish (for testing)
+   - **prerelease**: Mark as pre-release
 
-Result:
-- Users can install and run via npm/npx:
-  - npx ccmcp list
-  - npm i -g ccmcp &amp;&amp; ccmcp list
+#### The workflow will:
+1. Run full test suite to ensure quality
+2. Bump version with `npm version <type>`
+3. Generate changelog from git history
+4. Push version commit and tag
+5. Build and publish package to npm
+6. Create/publish GitHub Release with changelog from Release Drafter
+7. Upload npm package tarball to release
+8. Comment on related PRs to notify contributors
 
-Notes:
-- The workflow uses Node 18 and publishes with public access.
-- The files published are restricted by the "files" array in [package.json](./package.json:1).
-- If you prefer automated releases on tag push, extend [release.yml](.github/workflows/release.yml:1) with:
-  on:
-    push:
-      tags:
-        - 'v*'
-  and push an annotated tag like v0.1.1.
+#### Result:
+Users can install and run via npm/npx:
+```bash
+npx ccmcp list
+npm i -g ccmcp && ccmcp list
+```
+
+#### Release Workflow Features:
+- **Test before release**: Runs full test suite before publishing
+- **Automated changelog**: Generates release notes from merged PRs
+- **PR notifications**: Comments on included PRs when released
+- **Package artifacts**: Attaches npm tarball to GitHub release
+- **Safe publish**: Option to skip npm publish for dry-run testing
+
+### 🔧 Workflow Configuration
+
+#### Setting Up PR Labels
+
+For optimal automation, add these labels to your repository:
+
+```bash
+# Breaking changes & versions
+breaking-change, breaking, major, minor, patch
+
+# Types
+feature, enhancement, bug, fix, regression
+
+# Categories
+security, vulnerability, performance, optimization
+chore, refactor, deps, dependencies
+ci, cd, workflow, github-actions
+docs, documentation, test, testing
+
+# Size labels (auto-added)
+size/XS, size/S, size/M, size/L, size/XL
+
+# Process labels
+needs-description, skip-changelog, internal
+```
+
+You can create these labels manually or use a tool like [github-label-sync](https://github.com/Financial-Times/github-label-sync).
+
+#### Customizing Release Drafter
+
+Edit [.github/release-drafter.yml](.github/release-drafter.yml) to customize:
+- Category titles and labels
+- Changelog template
+- Version resolution rules
+- Auto-labeler patterns
+
+#### Customizing PR Labeler
+
+Edit [.github/labeler.yml](.github/labeler.yml) to add file-based label rules.
+
+### 📊 Workflow Status Badges
+
+Add these badges to your README to show workflow status:
+
+```markdown
+![CI](https://github.com/your-username/ccmcp/workflows/CI/badge.svg)
+![Release Drafter](https://github.com/your-username/ccmcp/workflows/Release%20Drafter/badge.svg)
+```

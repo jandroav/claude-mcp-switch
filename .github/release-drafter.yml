@@ -1,10 +1,18 @@
 # Release Drafter config
-name-template: 'v$NEXT_PATCH_VERSION'
-tag-template: 'v$NEXT_PATCH_VERSION'
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
 exclude-labels:
   - 'skip-changelog'
   - 'internal'
+  - 'duplicate'
+  - 'invalid'
+  - 'wontfix'
 categories:
+  - title: '💥 Breaking Changes'
+    labels:
+      - 'breaking-change'
+      - 'breaking'
+      - 'major'
   - title: '🚀 Features'
     labels:
       - 'feature'
@@ -14,22 +22,46 @@ categories:
       - 'bug'
       - 'fix'
       - 'regression'
+  - title: '🔒 Security'
+    labels:
+      - 'security'
+      - 'vulnerability'
+  - title: '⚡ Performance'
+    labels:
+      - 'performance'
+      - 'optimization'
   - title: '🧰 Maintenance'
     labels:
       - 'chore'
       - 'refactor'
       - 'deps'
+      - 'dependencies'
+  - title: '🤖 CI/CD'
+    labels:
       - 'ci'
+      - 'cd'
+      - 'workflow'
+      - 'github-actions'
   - title: '📝 Documentation'
     labels:
       - 'docs'
-change-template: '- $TITLE (#$PR_NUMBER) by @$AUTHOR'
+      - 'documentation'
+  - title: '🧪 Testing'
+    labels:
+      - 'test'
+      - 'testing'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+no-changes-template: '- No changes in this release'
 template: |
-  ## Changelog
+  ## What's Changed
+
   $CHANGES
 
   ## Contributors
-  Thanks to $CONTRIBUTORS for their contributions to this release!
+
+  Thanks to $CONTRIBUTORS for contributing to this release!
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
 
 version-resolver:
   major:
@@ -53,23 +85,75 @@ version-resolver:
   default: patch
 
 autolabeler:
+  - label: 'breaking-change'
+    title:
+      - '/break/i'
+      - '/\bbreaking\b/i'
+  - label: 'security'
+    title:
+      - '/security/i'
+      - '/vulnerability/i'
+      - '/\bcve\b/i'
+  - label: 'performance'
+    title:
+      - '/perf/i'
+      - '/performance/i'
+      - '/optimi[sz]e/i'
   - label: 'docs'
     files:
       - '**/*.md'
+      - '**/docs/**/*'
     title:
-      - '/docs/i'
+      - '/docs?:/i'
+      - '/documentation/i'
   - label: 'deps'
     title:
-      - '/deps?/i'
+      - '/deps?:/i'
       - '/dependency/i'
+      - '/dependencies/i'
+      - '/bump/i'
     branch:
       - '/dependabot/.+/'
+      - '/renovate/.+/'
+    files:
+      - 'package.json'
+      - 'package-lock.json'
+  - label: 'test'
+    files:
+      - '**/test/**/*'
+      - '**/*.test.js'
+      - '**/*.spec.js'
+    title:
+      - '/test:/i'
+      - '/testing/i'
+  - label: 'ci'
+    files:
+      - '.github/workflows/**/*'
+      - '.github/**/*.yml'
+      - '.github/**/*.yaml'
+    title:
+      - '/\bci\b/i'
+      - '/workflow/i'
+      - '/github actions/i'
   - label: 'bug'
     title:
-      - '/fix/i'
-      - '/bug/i'
+      - '/fix:/i'
+      - '/\bbug\b/i'
+      - '/fixes #\d+/i'
   - label: 'enhancement'
     title:
-      - '/feat/i'
-      - '/feature/i'
+      - '/feat:/i'
+      - '/feature:/i'
+      - '/enhance/i'
+  - label: 'chore'
+    title:
+      - '/chore:/i'
+      - '/refactor:/i'
+
 prerelease: false
+
+replacers:
+  - search: '/\[bot\]/'
+    replace: ''
+  - search: '/dependabot/i'
+    replace: 'Dependabot'

@@ -11,6 +11,16 @@ on:
           - patch
           - minor
           - major
+      skip_npm:
+        description: "Skip npm publish (for testing)"
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: "Mark as pre-release"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -36,31 +46,121 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Install
+      - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Run tests
+        run: npm test
+
+      - name: Get previous version
+        id: prev_version
+        run: |
+          echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
 
       - name: Bump version and tag
         id: bump
         run: |
           npm version "${{ github.event.inputs.release_type }}" -m "chore(release): %s"
-          echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          PREV_TAG="v${{ steps.prev_version.outputs.version }}"
+          NEW_TAG="v${{ steps.bump.outputs.version }}"
+
+          echo "Generating changelog from $PREV_TAG to $NEW_TAG"
+
+          # Generate changelog
+          CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges 2>/dev/null || echo "Initial release")
+
+          # Save to file for release notes
+          cat > RELEASE_NOTES.md <<EOF
+          ## What's Changed
+
+          $CHANGELOG
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...$NEW_TAG
+          EOF
+
+          echo "changelog_file=RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
 
       - name: Push changes and tags
         run: |
           git push
           git push --tags
 
+      - name: Build package
+        run: npm pack
+
       - name: Publish to npm
+        if: ${{ !inputs.skip_npm }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
 
-      - name: Publish GitHub Release (Release Drafter)
+      - name: Get draft release info
+        id: draft_release
         uses: release-drafter/release-drafter@v6
         with:
-          publish: true
-          tag: v${{ steps.bump.outputs.version }}
-          name: v${{ steps.bump.outputs.version }}
           config-name: release-drafter.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish GitHub Release
+        uses: release-drafter/release-drafter@v6
+        with:
+          publish: true
+          tag: ${{ steps.bump.outputs.tag }}
+          name: ${{ steps.bump.outputs.tag }}
+          version: ${{ steps.bump.outputs.version }}
+          prerelease: ${{ inputs.prerelease }}
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload npm package to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.draft_release.outputs.upload_url }}
+          asset_path: ./ccmcp-${{ steps.bump.outputs.version }}.tgz
+          asset_name: ccmcp-${{ steps.bump.outputs.version }}.tgz
+          asset_content_type: application/gzip
+
+      - name: Comment on related PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.bump.outputs.version }}';
+            const tag = '${{ steps.bump.outputs.tag }}';
+
+            // Get all merged PRs since last release
+            const { data: comparison } = await github.rest.repos.compareCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base: 'v${{ steps.prev_version.outputs.version }}',
+              head: tag
+            });
+
+            // Extract PR numbers from commit messages
+            const prNumbers = new Set();
+            for (const commit of comparison.commits) {
+              const match = commit.commit.message.match(/#(\d+)/g);
+              if (match) {
+                match.forEach(pr => prNumbers.add(parseInt(pr.replace('#', ''))));
+              }
+            }
+
+            // Comment on each PR
+            for (const prNumber of prNumbers) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `🎉 This PR has been included in release [${tag}](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${tag})!`
+              });
+            }

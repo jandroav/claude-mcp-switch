@@ -1,0 +1,59 @@
+# Labeler configuration for automatic PR labeling based on file paths
+
+# Documentation
+docs:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**/*'
+      - 'CLAUDE.md'
+      - 'README.md'
+
+# Dependencies
+deps:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'npm-shrinkwrap.json'
+
+# Testing
+test:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'test/**/*'
+      - '**/*.test.js'
+      - '**/*.spec.js'
+      - '**/test/**/*'
+
+# CI/CD
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**/*'
+      - '.github/workflows/**/*'
+      - '.github/**/*.yml'
+      - '.github/**/*.yaml'
+
+# Core source code
+core:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/**/*.js'
+      - 'lib/**/*.js'
+
+# CLI specific
+cli:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/ccmcp.js'
+      - 'src/lib/**/*'
+
+# Configuration
+config:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*config*.js'
+      - '**/*config*.json'
+      - '.*.json'
+      - '.*.js'
