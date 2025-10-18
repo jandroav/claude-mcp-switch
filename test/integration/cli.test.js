@@ -58,7 +58,7 @@ describe('CLI Integration', () => {
     it('should display version', () => {
       const result = runCLI('--version');
       assert.strictEqual(result.exitCode, 0);
-      assert.ok(result.stdout.includes('ccmcp'));
+      assert.ok(result.stdout.includes('claude-mcp-switch'));
     });
   });
 
