@@ -61,6 +61,9 @@ node --test test/unit/utils.test.js
 
 # Run specific test suite
 node --test test/unit/config.test.js
+
+# Run all tests in a directory (cross-platform)
+node --test "test/unit/**/*.test.js"
 ```
 
 ### Publishing

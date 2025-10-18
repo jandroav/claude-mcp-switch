@@ -11,11 +11,11 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test test/unit/*.test.js test/integration/*.test.js",
-    "test:unit": "node --test test/unit/*.test.js",
-    "test:integration": "node --test test/integration/*.test.js",
-    "test:watch": "node --test --watch test/unit/*.test.js test/integration/*.test.js",
-    "test:coverage": "node --test --experimental-test-coverage test/unit/*.test.js test/integration/*.test.js"
+    "test": "node --test \"test/unit/**/*.test.js\" \"test/integration/**/*.test.js\"",
+    "test:unit": "node --test \"test/unit/**/*.test.js\"",
+    "test:integration": "node --test \"test/integration/**/*.test.js\"",
+    "test:watch": "node --test --watch \"test/unit/**/*.test.js\" \"test/integration/**/*.test.js\"",
+    "test:coverage": "node --test --experimental-test-coverage \"test/unit/**/*.test.js\" \"test/integration/**/*.test.js\""
   },
   "keywords": [
     "claude",

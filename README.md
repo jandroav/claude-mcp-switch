@@ -230,9 +230,9 @@ Automatically labels pull requests based on:
 
 Configuration file: [labeler.yml](.github/labeler.yml)
 
-### 🎉 Release and Publish ([release.yml](.github/workflows/release.yml))
+### 🎉 Publish to npm ([release.yml](.github/workflows/release.yml))
 
-Manual workflow to create releases and publish to npm:
+Automatically publishes to npm when you publish a GitHub release:
 
 - Workflow file: [release.yml](.github/workflows/release.yml)
 - Package entry: [package.json](./package.json:1)
@@ -241,22 +241,38 @@ Manual workflow to create releases and publish to npm:
 - Create a repository secret named `NPM_TOKEN` containing an npm access token with publish rights
 - Ensure the package name in [package.json](./package.json:1) is available on npm
 
-#### Steps:
-1. Go to Actions → Version and Release → Run workflow
-2. Choose options:
-   - **release_type**: `patch`, `minor`, or `major`
-   - **skip_npm**: Skip npm publish (for testing)
-   - **prerelease**: Mark as pre-release
+#### How It Works:
+
+1. **Create PRs and merge them** - Release Drafter automatically maintains a draft release with changelog
+2. **Edit the draft release** (optional) - Review and edit the changelog if needed
+3. **Publish the release** - Click "Publish release" in the GitHub UI
+4. **Automatic npm publish** - The workflow automatically:
+   - Runs full test suite
+   - Extracts version from release tag (e.g., `v0.2.0` → `0.2.0`)
+   - Updates `package.json` version
+   - Publishes to npm registry
+   - Uploads package tarball to the release
+   - Comments on related PRs to notify contributors
+
+#### Release Process:
+
+```bash
+# 1. Merge PRs to main (with proper labels)
+# 2. Release Drafter updates the draft release automatically
+
+# 3. When ready to release, go to GitHub:
+#    Releases → Draft Release → Edit → Publish release
+
+# 4. Workflow triggers automatically and publishes to npm
+```
 
 #### The workflow will:
-1. Run full test suite to ensure quality
-2. Bump version with `npm version <type>`
-3. Generate changelog from git history
-4. Push version commit and tag
-5. Build and publish package to npm
-6. Create/publish GitHub Release with changelog from Release Drafter
-7. Upload npm package tarball to release
-8. Comment on related PRs to notify contributors
+1. ✅ Run full test suite to ensure quality
+2. ✅ Extract version from the release tag
+3. ✅ Update `package.json` with the new version
+4. ✅ Build and publish package to npm
+5. ✅ Upload npm package tarball to release assets
+6. ✅ Comment on related PRs to notify contributors
 
 #### Result:
 Users can install and run via npm/npx:
@@ -265,12 +281,19 @@ npx ccmcp list
 npm i -g ccmcp && ccmcp list
 ```
 
-#### Release Workflow Features:
-- **Test before release**: Runs full test suite before publishing
-- **Automated changelog**: Generates release notes from merged PRs
-- **PR notifications**: Comments on included PRs when released
-- **Package artifacts**: Attaches npm tarball to GitHub release
-- **Safe publish**: Option to skip npm publish for dry-run testing
+#### Version Management:
+
+The version is controlled by the **release tag** you create in GitHub:
+- Tag format: `v1.2.3` (the `v` prefix is automatically stripped)
+- Release Drafter suggests the next version based on PR labels
+- You can manually edit the version before publishing
+
+**Example:**
+- Current version: `v0.1.0`
+- Merge PRs with `feature` labels
+- Release Drafter suggests: `v0.2.0`
+- Edit if needed, then publish
+- Workflow automatically publishes `0.2.0` to npm
 
 ### 🔧 Workflow Configuration
 
