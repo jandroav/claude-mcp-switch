@@ -85,11 +85,28 @@ describe('config', () => {
       process.env = originalEnv;
     });
 
+    it('should prioritize project-level configs first', () => {
+      delete process.env.CLAUDE_CONFIG_DIR;
+      const paths = candidateConfigPaths();
+      // Normalize paths for cross-platform comparison
+      const normalizedPaths = paths.map(p => p.replace(/\\/g, '/'));
+
+      // First two paths should be project-level configs
+      assert.ok(normalizedPaths[0].endsWith('.claude/.claude.json'));
+      assert.ok(normalizedPaths[1].endsWith('.mcp.json'));
+    });
+
     it('should return paths from CLAUDE_CONFIG_DIR if set', () => {
       process.env.CLAUDE_CONFIG_DIR = '/custom/path';
       const paths = candidateConfigPaths();
       // Normalize paths for cross-platform comparison
       const normalizedPaths = paths.map(p => p.replace(/\\/g, '/'));
+
+      // Project-level configs still come first
+      assert.ok(normalizedPaths[0].endsWith('.claude/.claude.json'));
+      assert.ok(normalizedPaths[1].endsWith('.mcp.json'));
+
+      // Then CLAUDE_CONFIG_DIR paths
       assert.ok(normalizedPaths.includes('/custom/path/settings.json'));
       assert.ok(normalizedPaths.includes('/custom/path/claude_desktop_config.json'));
     });
@@ -148,6 +165,10 @@ describe('config', () => {
 
     it('should resolve first existing candidate path', () => {
       const originalEnv = { ...process.env };
+      const originalCwd = process.cwd();
+
+      // Change to temp dir to avoid finding project-level configs
+      process.chdir(tempDir);
       process.env.CLAUDE_CONFIG_DIR = tempDir;
       const filePath = path.join(tempDir, 'settings.json');
       fs.writeFileSync(filePath, '{}');
@@ -156,10 +177,15 @@ describe('config', () => {
       assert.strictEqual(result, filePath);
 
       process.env = originalEnv;
+      process.chdir(originalCwd);
     });
 
     it('should throw if no candidates exist', () => {
       const originalEnv = { ...process.env };
+      const originalCwd = process.cwd();
+
+      // Change to temp dir to avoid finding project-level configs
+      process.chdir(tempDir);
       process.env.CLAUDE_CONFIG_DIR = tempDir;
 
       assert.throws(() => {
@@ -167,6 +193,7 @@ describe('config', () => {
       }, /Could not find Claude Code config/);
 
       process.env = originalEnv;
+      process.chdir(originalCwd);
     });
   });
 

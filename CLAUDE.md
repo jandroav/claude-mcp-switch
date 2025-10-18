@@ -171,10 +171,18 @@ Custom ANSI color utilities (`COLOR` object) with auto-detection:
 
 ## Platform Considerations
 
-### Config Paths
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`, `~/.claude/settings.json`
-- **Linux**: `~/.config/claude/claude_desktop_config.json`, `~/.claude/settings.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`, `%USERPROFILE%\.claude\settings.json`
+### Config Discovery Order
+The tool searches for config files in this priority order:
+1. **Explicit override**: `--config PATH`
+2. **Project-level user config**: `./.claude/.claude.json` (user-specific, gitignored)
+3. **Project-level shared config**: `./.mcp.json` (team-shared, checked into git)
+4. **Environment variable**: If `CLAUDE_CONFIG_DIR` is set:
+   - `$CLAUDE_CONFIG_DIR/settings.json`
+   - `$CLAUDE_CONFIG_DIR/claude_desktop_config.json`
+5. **OS-specific user configs**:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`, `~/.claude/settings.json`
+   - **Linux**: `~/.config/claude/claude_desktop_config.json`, `~/.claude/settings.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`, `%USERPROFILE%\.claude\settings.json`
 
 ### Path Handling
 - `expandHome()` handles `~` prefix expansion

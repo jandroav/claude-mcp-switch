@@ -20,3 +20,6 @@ Thumbs.db
 # Temp files
 *.tmp
 *.log
+
+# User-specific MCP config
+.claude/

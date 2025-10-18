@@ -29,12 +29,21 @@ function fileExists(p) {
 
 function candidateConfigPaths() {
   const out = [];
+
+  // 1. Project-level user config (highest priority)
+  out.push(path.join(process.cwd(), '.claude', '.claude.json'));
+
+  // 2. Project-level shared config
+  out.push(path.join(process.cwd(), '.mcp.json'));
+
+  // 3. Environment variable override
   const envDir = process.env.CLAUDE_CONFIG_DIR;
   if (envDir) {
     const base = expandHome(envDir);
     out.push(path.join(base, 'settings.json'));
     out.push(path.join(base, 'claude_desktop_config.json'));
   } else {
+    // 4. Platform-specific user-level configs
     const plat = detectPlatform();
     if (plat === 'mac') {
       out.push(path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'));

@@ -70,11 +70,13 @@ Supports macOS, Linux, and Windows, with config discovery via CLAUDE_CONFIG_DIR 
 
 ## 🔍 Config discovery
 Order of precedence:
-1) --config PATH
-2) CLAUDE_CONFIG_DIR:
+1) --config PATH (explicit override)
+2) ./.claude/.claude.json (project-level user config)
+3) ./.mcp.json (project-level shared config)
+4) CLAUDE_CONFIG_DIR:
    - $CLAUDE_CONFIG_DIR/settings.json
    - $CLAUDE_CONFIG_DIR/claude_desktop_config.json
-3) OS defaults:
+5) OS defaults:
    - macOS:
      - ~/Library/Application Support/Claude/claude_desktop_config.json
      - ~/.claude/settings.json

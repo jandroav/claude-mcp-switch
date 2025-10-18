@@ -160,18 +160,19 @@ ${COLOR.bold('Usage:')}
 Identifier resolution (case-insensitive exact match):
   Priority: id > key > name
 
-Config discovery:
-  --config PATH overrides auto-detection.
-  If CLAUDE_CONFIG_DIR is set:
-    - $CLAUDE_CONFIG_DIR/settings.json
-    - $CLAUDE_CONFIG_DIR/claude_desktop_config.json
-  Else OS defaults:
-    - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
-             ~/.claude/settings.json
-    - Linux: ~/.config/claude/claude_desktop_config.json
-             ~/.claude/settings.json
-    - Windows: %APPDATA%/Claude/claude_desktop_config.json
-               %USERPROFILE%/.claude/settings.json
+Config discovery (in priority order):
+  1. --config PATH (explicit override)
+  2. ./.claude/.claude.json (project-level user config)
+  3. ./.mcp.json (project-level shared config)
+  4. $CLAUDE_CONFIG_DIR/settings.json (if CLAUDE_CONFIG_DIR is set)
+  5. $CLAUDE_CONFIG_DIR/claude_desktop_config.json
+  6. OS defaults:
+     - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
+              ~/.claude/settings.json
+     - Linux: ~/.config/claude/claude_desktop_config.json
+              ~/.claude/settings.json
+     - Windows: %APPDATA%/Claude/claude_desktop_config.json
+                %USERPROFILE%/.claude/settings.json
 
 Exit codes:
   0 success
