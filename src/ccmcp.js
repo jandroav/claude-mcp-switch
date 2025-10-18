@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /* claude-mcp-switch - Claude Code MCP switcher (macOS/Linux/Windows)
- * List, enable, disable MCP servers in Claude Code/Claude Desktop config.
- * Zero-dependency Node.js CLI (Node >=18)
+ * List, enable, disable MCP servers using claude CLI commands.
+ * Zero external dependency Node.js CLI (Node >=18)
  */
 
 const path = require('path');
-const { resolveConfigPath, readJson, backupFile, writeJsonAtomic, EX_IO, EX_JSON } = require('./lib/config');
-const { detectSchema, enumerateServers, performEnable, performDisable } = require('./lib/schema');
-const { matchIdentifier, serializeSuggestions } = require('./lib/matcher');
-const { COLOR, println, eprintln, printBanner, printList, printSuggestionsTable, help } = require('./lib/ui');
+const claudeCli = require('./lib/claude-cli');
+const storage = require('./lib/storage');
+const { COLOR, println, eprintln, printBanner, help } = require('./lib/ui');
 
 // Read version from package.json
 const pkg = require(path.join(__dirname, '..', 'package.json'));
@@ -17,7 +16,7 @@ const NAME = pkg.name;
 
 const EX_OK = 0;
 const EX_NO_MATCH = 2;
-const EX_AMBIG = 3;
+const EX_ERROR = 4;
 
 function parseArgs(argv) {
   const args = { _: [] };
@@ -27,200 +26,250 @@ function parseArgs(argv) {
     else if (a === '--json') args.json = true;
     else if (a === '--dry-run') args.dryRun = true;
     else if (a === '--version' || a === '-v') args.version = true;
-    else if (a === '--config') {
-      const next = argv[i + 1];
-      if (!next || next.startsWith('-')) {
-        eprintln(COLOR.red('Error: --config requires a path'));
-        process.exit(EX_IO);
-      }
-      args.config = next;
-      i++;
-    } else if (a === '--no-color') {
-      args.noColor = true;
-    } else {
-      args._.push(a);
-    }
+    else if (a === '--no-color') args.noColor = true;
+    else args._.push(a);
   }
   return args;
 }
 
-function actionList(cfg, args) {
-  const items = enumerateServers(cfg);
-  printList(items, !!args.json);
+function printListTable(servers, disabledServers, asJson) {
+  if (asJson) {
+    const all = [
+      ...servers.map(s => ({ ...s, status: 'enabled' })),
+      ...disabledServers.map(d => ({ name: d.name, ...d.config, status: 'disabled' }))
+    ];
+    println(JSON.stringify(all, null, 2));
+    return;
+  }
+
+  if (servers.length === 0 && disabledServers.length === 0) {
+    println(COLOR.red('No MCP servers found.'));
+    return;
+  }
+
+  // Print table header
+  println('┌──────────┬──────────────────────┬────────────┬─────────────────────────────────────────────────┐');
+  println('│ STATUS   │ NAME                 │ TRANSPORT  │ COMMAND/URL                                     │');
+  println('├──────────┼──────────────────────┼────────────┼─────────────────────────────────────────────────┤');
+
+  // Print enabled servers
+  for (const server of servers) {
+    const status = COLOR.green('enabled');
+    const name = COLOR.cyan(server.name.padEnd(20).substring(0, 20));
+    const transport = server.transport.padEnd(10).substring(0, 10);
+    const cmd = server.commandOrUrl.substring(0, 47);
+    println(`│ ${status}  │ ${name} │ ${transport} │ ${cmd.padEnd(47)} │`);
+  }
+
+  // Print disabled servers
+  for (const disabled of disabledServers) {
+    const status = COLOR.red('disabled');
+    const name = COLOR.dim(disabled.name.padEnd(20).substring(0, 20));
+    const transport = (disabled.config.transport || 'unknown').padEnd(10).substring(0, 10);
+    const cmd = (disabled.config.url || disabled.config.command || '').substring(0, 47);
+    println(`│ ${status} │ ${name} │ ${transport} │ ${COLOR.dim(cmd.padEnd(47))} │`);
+  }
+
+  println('└──────────┴──────────────────────┴────────────┴─────────────────────────────────────────────────┘');
+}
+
+function actionList(args) {
+  const result = claudeCli.listServers();
+  if (!result.ok) {
+    if (args.json) {
+      println(JSON.stringify({ ok: false, error: result.error }, null, 2));
+    } else {
+      eprintln(COLOR.red(`Error: ${result.error}`));
+    }
+    return EX_ERROR;
+  }
+
+  const disabledServers = storage.listDisabledServers();
+  printListTable(result.servers, disabledServers, args.json);
   return EX_OK;
 }
 
-function actionEnable(cfg, ident, args, cfgPath) {
-  const list = enumerateServers(cfg);
-  const m = matchIdentifier(list, ident);
-  if (!m.ok) {
+function findServer(identifier, servers, disabledServers) {
+  // Try exact match in active servers
+  let found = servers.find(s => s.name.toLowerCase() === identifier.toLowerCase());
+  if (found) return { server: found, isDisabled: false };
+
+  // Try exact match in disabled servers
+  found = disabledServers.find(d => d.name.toLowerCase() === identifier.toLowerCase());
+  if (found) return { server: found, isDisabled: true };
+
+  return null;
+}
+
+function actionEnable(identifier, args) {
+  if (!identifier) {
     if (args.json) {
-      println(JSON.stringify({ action: 'enable', identifier: ident, ok: false, ambiguous: !!m.ambiguous, suggestions: serializeSuggestions(m.suggestions) }, null, 2));
+      println(JSON.stringify({ ok: false, error: 'enable requires an identifier' }, null, 2));
     } else {
-      const title = m.ambiguous
-        ? COLOR.yellow(`Ambiguous identifier "${ident}". Candidates:`)
-        : COLOR.red(`No match for "${ident}". Suggestions:`);
-      println(title);
-      printSuggestionsTable(m.suggestions);
+      eprintln(COLOR.red('Error: enable requires an identifier'));
     }
-    return m.ambiguous ? EX_AMBIG : EX_NO_MATCH;
+    return EX_ERROR;
   }
-  const schema = detectSchema(cfg);
-  const changes = performEnable(cfg, m.item, schema);
+
+  // Check if it's in disabled storage
+  const disabledConfig = storage.getDisabledServer(identifier);
+  if (!disabledConfig) {
+    if (args.json) {
+      println(JSON.stringify({ ok: false, error: `Server "${identifier}" not found in disabled storage` }, null, 2));
+    } else {
+      eprintln(COLOR.red(`Error: Server "${identifier}" is not disabled or not found.`));
+      eprintln(COLOR.dim('Use "list" to see available servers.'));
+    }
+    return EX_NO_MATCH;
+  }
+
   if (args.dryRun) {
     if (args.json) {
-      println(JSON.stringify({ action: 'enable', identifier: ident, ok: true, dryRun: true, changes, configPath: cfgPath }, null, 2));
+      println(JSON.stringify({ ok: true, action: 'enable', identifier, dryRun: true }, null, 2));
     } else {
-      const body = changes.length ? changes.map((c) => `  • ${c}`).join('\n') : '  • no-op';
-      println(COLOR.cyan('Planned changes (no write):') + '\n' + body);
+      println(COLOR.yellow(`[DRY RUN] Would enable "${identifier}"`));
     }
     return EX_OK;
   }
-  // Write out
-  const bak = backupFile(cfgPath);
-  writeJsonAtomic(cfgPath, cfg);
-  if (args.json) {
-    println(JSON.stringify({ action: 'enable', identifier: ident, ok: true, backup: bak, changes, configPath: cfgPath }, null, 2));
-  } else {
-    println(COLOR.green(`✔ Enabled "${ident}"`) + ' ' + COLOR.dim(`(backup: ${bak})`));
-    if (changes.length) {
-      const body = changes.map((c) => `  • ${c}`).join('\n');
-      println(COLOR.cyan('Changes:') + '\n' + body);
+
+  // Re-add the server using stored config
+  const addConfig = {
+    name: identifier,
+    transport: disabledConfig.transport,
+    commandOrUrl: disabledConfig.url || disabledConfig.command,
+    args: disabledConfig.args || [],
+    env: disabledConfig.env || [],
+    scope: 'user' // Default to user scope
+  };
+
+  const result = claudeCli.addServer(addConfig);
+  if (!result.ok) {
+    if (args.json) {
+      println(JSON.stringify({ ok: false, error: result.error }, null, 2));
+    } else {
+      eprintln(COLOR.red(`Error enabling "${identifier}": ${result.error}`));
     }
+    return EX_ERROR;
+  }
+
+  // Remove from disabled storage
+  storage.removeDisabledServer(identifier);
+
+  if (args.json) {
+    println(JSON.stringify({ ok: true, action: 'enable', identifier }, null, 2));
+  } else {
+    println(COLOR.green(`✔ Enabled "${identifier}"`));
   }
   return EX_OK;
 }
 
-function actionDisable(cfg, ident, args, cfgPath) {
-  const list = enumerateServers(cfg);
-  const m = matchIdentifier(list, ident);
-  if (!m.ok) {
+function actionDisable(identifier, args) {
+  if (!identifier) {
     if (args.json) {
-      println(JSON.stringify({ action: 'disable', identifier: ident, ok: false, ambiguous: !!m.ambiguous, suggestions: serializeSuggestions(m.suggestions) }, null, 2));
+      println(JSON.stringify({ ok: false, error: 'disable requires an identifier' }, null, 2));
     } else {
-      const title = m.ambiguous
-        ? COLOR.yellow(`Ambiguous identifier "${ident}". Candidates:`)
-        : COLOR.red(`No match for "${ident}". Suggestions:`);
-      println(title);
-      printSuggestionsTable(m.suggestions);
+      eprintln(COLOR.red('Error: disable requires an identifier'));
     }
-    return m.ambiguous ? EX_AMBIG : EX_NO_MATCH;
+    return EX_ERROR;
   }
-  const schema = detectSchema(cfg);
-  let changes;
-  try {
-    changes = performDisable(cfg, m.item, schema);
-  } catch (e) {
+
+  // Get server details before removing
+  const getResult = claudeCli.getServer(identifier);
+  if (!getResult.ok) {
     if (args.json) {
-      println(JSON.stringify({ action: 'disable', identifier: ident, ok: false, error: e.message }, null, 2));
+      println(JSON.stringify({ ok: false, error: `Server "${identifier}" not found` }, null, 2));
     } else {
-      eprintln(COLOR.red(`Error: ${e.message}`));
+      eprintln(COLOR.red(`Error: Server "${identifier}" not found.`));
+      eprintln(COLOR.dim('Use "list" to see available servers.'));
     }
-    return e.codeEx || EX_JSON;
+    return EX_NO_MATCH;
   }
+
   if (args.dryRun) {
     if (args.json) {
-      println(JSON.stringify({ action: 'disable', identifier: ident, ok: true, dryRun: true, changes, configPath: cfgPath }, null, 2));
+      println(JSON.stringify({ ok: true, action: 'disable', identifier, dryRun: true }, null, 2));
     } else {
-      const body = changes.length ? changes.map((c) => `  • ${c}`).join('\n') : '  • no-op';
-      println(COLOR.cyan('Planned changes (no write):') + '\n' + body);
+      println(COLOR.yellow(`[DRY RUN] Would disable "${identifier}"`));
     }
     return EX_OK;
   }
-  // Write out
-  const bak = backupFile(cfgPath);
-  writeJsonAtomic(cfgPath, cfg);
-  if (args.json) {
-    println(JSON.stringify({ action: 'disable', identifier: ident, ok: true, backup: bak, changes, configPath: cfgPath }, null, 2));
-  } else {
-    println(COLOR.yellow(`✔ Disabled "${ident}"`) + ' ' + COLOR.dim(`(backup: ${bak})`));
-    if (changes.length) {
-      const body = changes.map((c) => `  • ${c}`).join('\n');
-      println(COLOR.cyan('Changes:') + '\n' + body);
+
+  // Store config before removing
+  storage.storeDisabledServer(identifier, getResult.server);
+
+  // Remove the server
+  const removeResult = claudeCli.removeServer(identifier);
+  if (!removeResult.ok) {
+    if (args.json) {
+      println(JSON.stringify({ ok: false, error: removeResult.error }, null, 2));
+    } else {
+      eprintln(COLOR.red(`Error disabling "${identifier}": ${removeResult.error}`));
     }
+    return EX_ERROR;
+  }
+
+  if (args.json) {
+    println(JSON.stringify({ ok: true, action: 'disable', identifier }, null, 2));
+  } else {
+    println(COLOR.green(`✔ Disabled "${identifier}"`));
+    println(COLOR.dim('Configuration saved. Use "enable" to restore it.'));
   }
   return EX_OK;
 }
 
 function main() {
-  const argv = process.argv.slice(2);
-  const args = parseArgs(argv);
+  const args = parseArgs(process.argv.slice(2));
 
-  // Configure color support
-  COLOR.enabled = !args.json && !args.noColor && process.stdout.isTTY && process.env.NO_COLOR !== '1';
-
-  if (args.help) {
-    help(args);
-    process.exit(EX_OK);
+  // Handle --no-color
+  if (args.noColor || process.env.NO_COLOR) {
+    COLOR.enabled = false;
   }
+
+  // Handle --json (implies no color)
+  if (args.json) {
+    COLOR.enabled = false;
+  }
+
+  // Handle --version
   if (args.version) {
-    println(COLOR.bold(COLOR.cyan(`${NAME} ${VERSION}`)));
-    process.exit(EX_OK);
+    println(`${NAME} ${VERSION}`);
+    return EX_OK;
   }
 
-  const cmd = args._[0];
-  if (!cmd || !['list', 'enable', 'disable'].includes(cmd)) {
-    help(args);
-    process.exit(cmd ? EX_IO : EX_OK);
+  // Handle --help
+  if (args.help || args._.length === 0) {
+    help();
+    return EX_OK;
   }
 
+  const [command, identifier] = args._;
+
+  // Print banner for non-JSON output
   if (!args.json) {
     printBanner();
   }
 
-  let cfgPath;
-  try {
-    cfgPath = resolveConfigPath(args.config);
-  } catch (e) {
+  // Route commands
+  if (command === 'list') {
+    return actionList(args);
+  } else if (command === 'enable') {
+    return actionEnable(identifier, args);
+  } else if (command === 'disable') {
+    return actionDisable(identifier, args);
+  } else {
     if (args.json) {
-      println(JSON.stringify({ ok: false, error: e.message }, null, 2));
+      println(JSON.stringify({ ok: false, error: `Unknown command: ${command}` }, null, 2));
     } else {
-      eprintln(COLOR.red(`Error: ${e.message}`));
+      eprintln(COLOR.red(`Error: Unknown command: ${command}`));
+      eprintln(COLOR.dim('Run with --help for usage information.'));
     }
-    process.exit(e.codeEx || EX_IO);
-  }
-
-  let cfg;
-  try {
-    cfg = readJson(cfgPath);
-  } catch (e) {
-    if (args.json) {
-      println(JSON.stringify({ ok: false, error: e.message, configPath: cfgPath }, null, 2));
-    } else {
-      eprintln(COLOR.red(`Error: ${e.message}`));
-    }
-    process.exit(e.codeEx || EX_IO);
-  }
-
-  try {
-    if (cmd === 'list') {
-      const code = actionList(cfg, args);
-      process.exit(code);
-    } else if (cmd === 'enable') {
-      const ident = args._[1];
-      if (!ident) {
-        eprintln(COLOR.red('Error: enable requires an identifier'));
-        process.exit(EX_IO);
-      }
-      const code = actionEnable(cfg, ident, args, cfgPath);
-      process.exit(code);
-    } else if (cmd === 'disable') {
-      const ident = args._[1];
-      if (!ident) {
-        eprintln(COLOR.red('Error: disable requires an identifier'));
-        process.exit(EX_IO);
-      }
-      const code = actionDisable(cfg, ident, args, cfgPath);
-      process.exit(code);
-    }
-  } catch (e) {
-    if (args.json) {
-      println(JSON.stringify({ ok: false, error: e.message }, null, 2));
-    } else {
-      eprintln(COLOR.red(`Unhandled error: ${e.message}`));
-    }
-    process.exit(e.codeEx || EX_IO);
+    return EX_ERROR;
   }
 }
 
-main();
+if (require.main === module) {
+  const exitCode = main();
+  process.exit(exitCode);
+}
+
+module.exports = { main, parseArgs };

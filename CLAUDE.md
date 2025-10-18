@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**ccmcp** is a zero-dependency Node.js CLI tool for managing Claude Code/Claude Desktop MCP (Model Context Protocol) servers. It enables users to list, enable, and disable MCP servers across macOS, Linux, and Windows platforms.
+**claude-mcp-switch** is a zero-dependency Node.js CLI tool for managing Claude Code MCP (Model Context Protocol) servers. It wraps the `claude` CLI commands to provide enable/disable functionality while preserving server configurations. Works across macOS, Linux, and Windows platforms.
 
 ## Development Commands
 
@@ -82,78 +82,43 @@ The workflow automatically:
 ## Architecture
 
 ### Modular Design
-The codebase is organized into focused modules for testability:
+The codebase is organized into focused modules:
 
-- `src/ccmcp.js` - CLI entry point and command orchestration (~220 lines)
-- `src/lib/utils.js` - Generic utilities (expandHome, truncate, safeStr, nowStamp, detectPlatform)
-- `src/lib/config.js` - Config discovery, file I/O, JSON operations, backup/atomic writes
-- `src/lib/schema.js` - Schema detection, server enumeration, enable/disable operations
-- `src/lib/matcher.js` - Identifier matching, Levenshtein distance, suggestion generation
+- `src/ccmcp.js` - CLI entry point and command orchestration
+- `src/lib/claude-cli.js` - Wrapper for `claude mcp` commands (list, get, add, remove)
+- `src/lib/storage.js` - Local storage for disabled server configurations
 - `src/lib/ui.js` - ANSI color utilities, banner, table printing, help text
 
 This modular structure maintains zero external dependencies while enabling comprehensive unit testing.
 
 ### Core Flow
-1. **Argument Parsing** (`parseArgs`): Manual argv parsing with support for `--config`, `--json`, `--dry-run`, `--no-color`
-2. **Config Discovery** (`resolveConfigPath`): Multi-platform path resolution with precedence:
-   - `--config` flag override
-   - `CLAUDE_CONFIG_DIR` environment variable
-   - Platform-specific defaults (macOS: `~/Library/Application Support/Claude/`, Linux: `~/.config/claude/`, Windows: `%APPDATA%\Claude\`)
-3. **Schema Detection** (`detectSchema`): Identifies whether `mcpServers` is object or array, and whether entries use `enabled` property
-4. **Server Enumeration** (`enumerateServers`): Flattens both `mcpServers` and `mcpServersDisabled` into unified list with metadata
-5. **Action Execution**: `actionList`, `actionEnable`, `actionDisable`
+1. **Argument Parsing** (`parseArgs`): Manual argv parsing with support for `--json`, `--dry-run`, `--no-color`
+2. **Claude CLI Integration**:
+   - **List**: Executes `claude mcp list` and parses output
+   - **Get**: Executes `claude mcp get <name>` for server details
+   - **Remove**: Executes `claude mcp remove <name>` to disable
+   - **Add**: Executes `claude mcp add` with stored config to re-enable
+3. **Storage Management**:
+   - Disabled servers stored in `~/.claude-mcp-switch/disabled-servers.json`
+   - Preserves full server configuration for re-enabling
+4. **Action Execution**: `actionList`, `actionEnable`, `actionDisable`
 
-### Key Data Structures
+### Key Operations
 
-#### Server Item (from `packItem`)
-```javascript
-{
-  key: string,           // Object key (object schema only)
-  id: string,            // Server id field
-  name: string,          // Server name field
-  def: object,           // Original server definition
-  container: 'active'|'disabled',  // Which top-level key it's under
-  status: 'enabled'|'disabled',    // Computed status
-  command: string,       // Brief command string
-  transport: string,     // Brief transport string
-  shape: 'object'|'array',
-  index: number          // Array index (array schema only)
-}
-```
+#### List
+- Parses `claude mcp list` output to extract server details
+- Merges with locally stored disabled servers
+- Formats as table or JSON based on flags
 
-#### Schema Detection Result
-```javascript
-{
-  shape: 'object'|'array',
-  hasEnabled: boolean    // Whether any entry has 'enabled' property
-}
-```
+#### Disable
+1. Fetches full server details via `claude mcp get <name>`
+2. Stores configuration to `~/.claude-mcp-switch/disabled-servers.json`
+3. Removes server via `claude mcp remove <name>`
 
-### Enable/Disable Logic
-
-**Object Schema**:
-- If `enabled` property exists: toggle boolean
-- Otherwise: move entry between `mcpServers` and `mcpServersDisabled` objects
-
-**Array Schema**:
-- If `enabled` property exists: toggle boolean
-- Otherwise: disable is unsupported (error instructs user to add `enabled` field or convert to object)
-
-### Identifier Matching (`matchIdentifier`)
-
-Priority order: `id` → `key` → `name` (case-insensitive exact match)
-
-If no exact match:
-- Returns Levenshtein-distance-sorted suggestions (up to 5)
-- Exit code 2 for no match, 3 for ambiguous match
-
-### File Safety
-
-All writes use atomic rename pattern:
-1. Create backup: `<file>.bak.YYYYMMDD-HHMMSS`
-2. Write to temp file: `.<file>.tmp-<pid>-<timestamp>`
-3. Atomic rename temp → target
-4. Always preserve unknown JSON fields (2-space formatting)
+#### Enable
+1. Retrieves stored configuration from local storage
+2. Re-adds server via `claude mcp add` with original settings (transport, command/URL, args, env)
+3. Removes from disabled storage
 
 ### Color Output
 
@@ -164,70 +129,15 @@ Custom ANSI color utilities (`COLOR` object) with auto-detection:
 
 ### Exit Codes
 - `0`: Success
-- `2`: No identifier match
-- `3`: Ambiguous identifier
-- `4`: IO error or config not found
-- `5`: Invalid JSON or unsupported schema
-
-## Platform Considerations
-
-### Config Discovery Order
-The tool searches for config files in this priority order:
-1. **Explicit override**: `--config PATH`
-2. **Project-level user config**: `./.claude/.claude.json` (user-specific, gitignored)
-3. **Project-level shared config**: `./.mcp.json` (team-shared, checked into git)
-4. **Environment variable**: If `CLAUDE_CONFIG_DIR` is set:
-   - `$CLAUDE_CONFIG_DIR/settings.json`
-   - `$CLAUDE_CONFIG_DIR/claude_desktop_config.json`
-5. **OS-specific user configs**:
-   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`, `~/.claude/settings.json`
-   - **Linux**: `~/.config/claude/claude_desktop_config.json`, `~/.claude/settings.json`
-   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`, `%USERPROFILE%\.claude\settings.json`
-
-### Path Handling
-- `expandHome()` handles `~` prefix expansion
-- Windows: Uses `process.env.APPDATA` with fallback to `AppData\Roaming`
+- `2`: Server not found
+- `4`: Error executing claude CLI command
 
 ## JSON Output Mode
 
 When `--json` is specified:
 - All output is JSON (no banner, no colors, no tables)
-- `list`: Array of server objects
-- `enable`/`disable`: Object with `{ ok, action, identifier, changes, configPath, backup?, dryRun?, error?, suggestions? }`
-
-## Supported MCP Server Schemas
-
-### Object (Recommended)
-```json
-{
-  "mcpServers": {
-    "github": {
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-github"],
-      "id": "github",
-      "enabled": true
-    }
-  }
-}
-```
-
-### Array
-```json
-{
-  "mcpServers": [
-    {
-      "id": "github",
-      "name": "GitHub MCP",
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-github"],
-      "enabled": true
-    }
-  ]
-}
-```
-
-### Disabled Container
-Tool-managed `mcpServersDisabled` mirrors the shape of `mcpServers` (object or array).
+- `list`: Array of server objects with `{status, name, transport, commandOrUrl, connected}`
+- `enable`/`disable`: Object with `{ok, action, identifier, error?}`
 
 ## Code Style Notes
 
