@@ -21,6 +21,37 @@ function eprintln(s = '') {
   process.stderr.write(String(s) + '\n');
 }
 
+// ANSI color utilities (no external deps)
+const COLOR = {
+  enabled: true,
+  code(code, s) {
+    return this.enabled ? `\x1b[${code}m${String(s)}\x1b[0m` : String(s);
+  },
+  bold(s) { return this.code(1, s); },
+  dim(s) { return this.code(2, s); },
+  red(s) { return this.code(31, s); },
+  green(s) { return this.code(32, s); },
+  yellow(s) { return this.code(33, s); },
+  blue(s) { return this.code(34, s); },
+  magenta(s) { return this.code(35, s); },
+  cyan(s) { return this.code(36, s); },
+  gray(s) { return this.code(90, s); }
+};
+
+function printBanner() {
+  const logo = [
+    '   ____   ____  __  __ ____  ',
+    '  / ___| / ___||  \\/  |  _ \\ ',
+    " | |     \\___ \\| |\\/| | |_) |",
+    ' | |___   ___) | |  | |  __/ ',
+    '  \\____| |____/|_|  |_|_|    '
+  ];
+  const title = 'Claude Code MCP switcher';
+  for (const line of logo) println(COLOR.cyan(COLOR.bold(line)));
+  println(COLOR.dim(' cc mcp · ' + title));
+  println(COLOR.dim('──────────────────────────────────────────────────────'));
+}
+
 function parseArgs(argv) {
   const args = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -32,11 +63,13 @@ function parseArgs(argv) {
     else if (a === '--config') {
       const next = argv[i + 1];
       if (!next || next.startsWith('-')) {
-        eprintln('Error: --config requires a path');
+        eprintln(COLOR.red('Error: --config requires a path'));
         process.exit(EX_IO);
       }
       args.config = next;
       i++;
+    } else if (a === '--no-color') {
+      args.noColor = true;
     } else {
       args._.push(a);
     }
@@ -44,14 +77,13 @@ function parseArgs(argv) {
   return args;
 }
 
-function help() {
+function help(args) {
+  printBanner();
   const msg = `
-ccmcp - Claude Code MCP switcher
-
-Usage:
-  ccmcp list [--json] [--config PATH]
-  ccmcp enable <identifier> [--config PATH] [--dry-run] [--json]
-  ccmcp disable <identifier> [--config PATH] [--dry-run] [--json]
+${COLOR.bold('Usage:')}
+  ccmcp list [--json] [--config PATH] [--no-color]
+  ccmcp enable <identifier> [--config PATH] [--dry-run] [--json] [--no-color]
+  ccmcp disable <identifier> [--config PATH] [--dry-run] [--json] [--no-color]
   ccmcp --help | --version
 
 Identifier resolution (case-insensitive exact match):
@@ -340,32 +372,100 @@ function printList(list, asJson) {
     return;
   }
   if (list.length === 0) {
-    println('No MCP servers found.');
+    println(COLOR.yellow('No MCP servers found.'));
     return;
   }
-  const rows = [
-    ['STATUS', 'KEY', 'ID', 'NAME', 'COMMAND/TRANSPORT'],
-    ...list.map((it) => [
-      it.status,
-      it.key || '',
-      it.id || '',
-      it.name || '',
-      it.command || it.transport || ''
-    ])
-  ];
-  const widths = [];
-  for (const row of rows) {
-    row.forEach((col, i) => {
-      widths[i] = Math.max(widths[i] || 0, col.length);
-    });
-  }
-  rows.forEach((row, idx) => {
-    const line = row
-      .map((col, i) => col.padEnd(widths[i]))
-      .join('  ');
-    println(line);
-    if (idx === 0) println('-'.repeat(line.length));
+  const headers = ['STATUS', 'KEY', 'ID', 'NAME', 'COMMAND/TRANSPORT'];
+  const rowsRaw = list.map((it) => [
+    it.status,
+    it.key || '',
+    it.id || '',
+    it.name || '',
+    it.command || it.transport || ''
+  ]);
+  const widths = headers.map((h, i) => {
+    return Math.max(h.length, ...rowsRaw.map((r) => (r[i] || '').length));
   });
+
+  const borderTop = '┌' + widths.map((w) => '─'.repeat(w + 2)).join('┬') + '┐';
+  const borderMid = '├' + widths.map((w) => '─'.repeat(w + 2)).join('┼') + '┤';
+  const borderBot = '└' + widths.map((w) => '─'.repeat(w + 2)).join('┴') + '┘';
+
+  const pad = (s, w) => String(s).padEnd(w, ' ');
+
+  const headerCols = headers.map((col, i) => COLOR.bold(COLOR.cyan(pad(col, widths[i]))));
+  const headerLine = '│ ' + headerCols.join(' │ ') + ' │';
+
+  println(borderTop);
+  println(headerLine);
+  println(borderMid);
+
+  for (const raw of rowsRaw) {
+    const colored = raw.map((col, i) => {
+      let val = pad(col, widths[i]);
+      if (i === 0) {
+        val = col === 'enabled' ? COLOR.green(val) : COLOR.red(val);
+      } else if (i === 1) {
+        val = COLOR.yellow(val);
+      } else if (i === 2) {
+        val = COLOR.magenta(val);
+      } else if (i === 3) {
+        val = COLOR.cyan(val);
+      } else if (i === 4) {
+        val = COLOR.gray(val);
+      }
+      return val;
+    });
+    const line = '│ ' + colored.join(' │ ') + ' │';
+    println(line);
+  }
+
+  println(borderBot);
+}
+
+function printSuggestionsTable(suggestions) {
+  const list = suggestions || [];
+  if (list.length === 0) {
+    println(COLOR.yellow('No suggestions.'));
+    return;
+  }
+  const headers = ['STATUS', 'KEY', 'ID', 'NAME', 'CONTAINER'];
+  const rowsRaw = list.map((it) => [
+    it.status,
+    it.key || '',
+    it.id || '',
+    it.name || '',
+    it.container || ''
+  ]);
+  const widths = headers.map((h, i) => Math.max(h.length, ...rowsRaw.map((r) => (r[i] || '').length)));
+
+  const borderTop = '┌' + widths.map((w) => '─'.repeat(w + 2)).join('┬') + '┐';
+  const borderMid = '├' + widths.map((w) => '─'.repeat(w + 2)).join('┼') + '┤';
+  const borderBot = '└' + widths.map((w) => '─'.repeat(w + 2)).join('┴') + '┘';
+
+  const pad = (s, w) => String(s).padEnd(w, ' ');
+
+  const headerCols = headers.map((col, i) => COLOR.bold(COLOR.cyan(pad(col, widths[i]))));
+  const headerLine = '│ ' + headerCols.join(' │ ') + ' │';
+
+  println(borderTop);
+  println(headerLine);
+  println(borderMid);
+
+  for (const raw of rowsRaw) {
+    const colored = raw.map((col, i) => {
+      let val = pad(col, widths[i]);
+      if (i === 0) val = col === 'enabled' ? COLOR.green(val) : COLOR.red(val);
+      else if (i === 1) val = COLOR.yellow(val);
+      else if (i === 2) val = COLOR.magenta(val);
+      else if (i === 3) val = COLOR.cyan(val);
+      else if (i === 4) val = COLOR.gray(val);
+      return val;
+    });
+    println('│ ' + colored.join(' │ ') + ' │');
+  }
+
+  println(borderBot);
 }
 
 function matchIdentifier(list, ident) {
@@ -545,14 +645,11 @@ function actionEnable(cfg, ident, args, cfgPath) {
     if (args.json) {
       println(JSON.stringify({ action: 'enable', identifier: ident, ok: false, ambiguous: !!m.ambiguous, suggestions: serializeSuggestions(m.suggestions) }, null, 2));
     } else {
-      if (m.ambiguous) {
-        eprintln(`Ambiguous identifier "${ident}". Candidates:`);
-      } else {
-        eprintln(`No match for "${ident}". Did you mean:`);
-      }
-      for (const s of m.suggestions) {
-        eprintln(`  - ${displayItem(s)}`);
-      }
+      const title = m.ambiguous
+        ? COLOR.yellow(`Ambiguous identifier "${ident}". Candidates:`)
+        : COLOR.red(`No match for "${ident}". Suggestions:`);
+      println(title);
+      printSuggestionsTable(m.suggestions);
     }
     return m.ambiguous ? EX_AMBIG : EX_NO_MATCH;
   }
@@ -562,7 +659,8 @@ function actionEnable(cfg, ident, args, cfgPath) {
     if (args.json) {
       println(JSON.stringify({ action: 'enable', identifier: ident, ok: true, dryRun: true, changes, configPath: cfgPath }, null, 2));
     } else {
-      println(`Planned changes (no write):\n- ${changes.join('\n- ') || 'no-op'}`);
+      const body = changes.length ? changes.map((c) => `  • ${c}`).join('\n') : '  • no-op';
+      println(COLOR.cyan('Planned changes (no write):') + '\n' + body);
     }
     return EX_OK;
   }
@@ -572,8 +670,11 @@ function actionEnable(cfg, ident, args, cfgPath) {
   if (args.json) {
     println(JSON.stringify({ action: 'enable', identifier: ident, ok: true, backup: bak, changes, configPath: cfgPath }, null, 2));
   } else {
-    println(`Enabled "${ident}". Backup: ${bak}`);
-    if (changes.length) println(`Changes:\n- ${changes.join('\n- ')}`);
+    println(COLOR.green(`✔ Enabled "${ident}"`) + ' ' + COLOR.dim(`(backup: ${bak})`));
+    if (changes.length) {
+      const body = changes.map((c) => `  • ${c}`).join('\n');
+      println(COLOR.cyan('Changes:') + '\n' + body);
+    }
   }
   return EX_OK;
 }
@@ -585,14 +686,11 @@ function actionDisable(cfg, ident, args, cfgPath) {
     if (args.json) {
       println(JSON.stringify({ action: 'disable', identifier: ident, ok: false, ambiguous: !!m.ambiguous, suggestions: serializeSuggestions(m.suggestions) }, null, 2));
     } else {
-      if (m.ambiguous) {
-        eprintln(`Ambiguous identifier "${ident}". Candidates:`);
-      } else {
-        eprintln(`No match for "${ident}". Did you mean:`);
-      }
-      for (const s of m.suggestions) {
-        eprintln(`  - ${displayItem(s)}`);
-      }
+      const title = m.ambiguous
+        ? COLOR.yellow(`Ambiguous identifier "${ident}". Candidates:`)
+        : COLOR.red(`No match for "${ident}". Suggestions:`);
+      println(title);
+      printSuggestionsTable(m.suggestions);
     }
     return m.ambiguous ? EX_AMBIG : EX_NO_MATCH;
   }
@@ -604,7 +702,7 @@ function actionDisable(cfg, ident, args, cfgPath) {
     if (args.json) {
       println(JSON.stringify({ action: 'disable', identifier: ident, ok: false, error: e.message }, null, 2));
     } else {
-      eprintln(`Error: ${e.message}`);
+      eprintln(COLOR.red(`Error: ${e.message}`));
     }
     return e.codeEx || EX_JSON;
   }
@@ -612,7 +710,8 @@ function actionDisable(cfg, ident, args, cfgPath) {
     if (args.json) {
       println(JSON.stringify({ action: 'disable', identifier: ident, ok: true, dryRun: true, changes, configPath: cfgPath }, null, 2));
     } else {
-      println(`Planned changes (no write):\n- ${changes.join('\n- ') || 'no-op'}`);
+      const body = changes.length ? changes.map((c) => `  • ${c}`).join('\n') : '  • no-op';
+      println(COLOR.cyan('Planned changes (no write):') + '\n' + body);
     }
     return EX_OK;
   }
@@ -622,8 +721,11 @@ function actionDisable(cfg, ident, args, cfgPath) {
   if (args.json) {
     println(JSON.stringify({ action: 'disable', identifier: ident, ok: true, backup: bak, changes, configPath: cfgPath }, null, 2));
   } else {
-    println(`Disabled "${ident}". Backup: ${bak}`);
-    if (changes.length) println(`Changes:\n- ${changes.join('\n- ')}`);
+    println(COLOR.yellow(`✔ Disabled "${ident}"`) + ' ' + COLOR.dim(`(backup: ${bak})`));
+    if (changes.length) {
+      const body = changes.map((c) => `  • ${c}`).join('\n');
+      println(COLOR.cyan('Changes:') + '\n' + body);
+    }
   }
   return EX_OK;
 }
@@ -651,19 +753,26 @@ function main() {
   const argv = process.argv.slice(2);
   const args = parseArgs(argv);
 
+  // Configure color support
+  COLOR.enabled = !args.json && !args.noColor && process.stdout.isTTY && process.env.NO_COLOR !== '1';
+
   if (args.help) {
-    help();
+    help(args);
     process.exit(EX_OK);
   }
   if (args.version) {
-    println('ccmcp 0.1.0');
+    println(COLOR.bold(COLOR.cyan('ccmcp 0.1.0')));
     process.exit(EX_OK);
   }
 
   const cmd = args._[0];
   if (!cmd || !['list', 'enable', 'disable'].includes(cmd)) {
-    help();
+    help(args);
     process.exit(cmd ? EX_IO : EX_OK);
+  }
+
+  if (!args.json) {
+    printBanner();
   }
 
   let cfgPath;
@@ -673,7 +782,7 @@ function main() {
     if (args.json) {
       println(JSON.stringify({ ok: false, error: e.message }, null, 2));
     } else {
-      eprintln(`Error: ${e.message}`);
+      eprintln(COLOR.red(`Error: ${e.message}`));
     }
     process.exit(e.codeEx || EX_IO);
   }
@@ -685,7 +794,7 @@ function main() {
     if (args.json) {
       println(JSON.stringify({ ok: false, error: e.message, configPath: cfgPath }, null, 2));
     } else {
-      eprintln(`Error: ${e.message}`);
+      eprintln(COLOR.red(`Error: ${e.message}`));
     }
     process.exit(e.codeEx || EX_IO);
   }
@@ -697,7 +806,7 @@ function main() {
     } else if (cmd === 'enable') {
       const ident = args._[1];
       if (!ident) {
-        eprintln('Error: enable requires an identifier');
+        eprintln(COLOR.red('Error: enable requires an identifier'));
         process.exit(EX_IO);
       }
       const code = actionEnable(cfg, ident, args, cfgPath);
@@ -705,7 +814,7 @@ function main() {
     } else if (cmd === 'disable') {
       const ident = args._[1];
       if (!ident) {
-        eprintln('Error: disable requires an identifier');
+        eprintln(COLOR.red('Error: disable requires an identifier'));
         process.exit(EX_IO);
       }
       const code = actionDisable(cfg, ident, args, cfgPath);
@@ -715,7 +824,7 @@ function main() {
     if (args.json) {
       println(JSON.stringify({ ok: false, error: e.message }, null, 2));
     } else {
-      eprintln(`Unhandled error: ${e.message}`);
+      eprintln(COLOR.red(`Unhandled error: ${e.message}`));
     }
     process.exit(e.codeEx || EX_IO);
   }
