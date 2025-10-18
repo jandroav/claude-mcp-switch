@@ -152,6 +152,35 @@ If none found, exit 4 with guidance.
     }
   }
 
+## 🧪 Testing
+
+The project uses Node.js built-in test runner (Node 18+) with comprehensive unit and integration tests.
+
+### Running Tests
+```bash
+# Run all tests
+npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+
+# Watch mode
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+```
+
+### Test Coverage
+- Unit tests for all modules (utils, config, schema, matcher, ui)
+- Integration tests for CLI commands
+- End-to-end tests with temp config files
+- Platform-specific path resolution tests
+- Error handling and edge case coverage
+
 ## 📄 License
 MIT
 

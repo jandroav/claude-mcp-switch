@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Test artifacts
+*.bak.*
+.nyc_output/
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temp files
+*.tmp
+*.log

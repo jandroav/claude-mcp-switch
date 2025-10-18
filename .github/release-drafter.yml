@@ -1,0 +1,75 @@
+# Release Drafter config
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+exclude-labels:
+  - 'skip-changelog'
+  - 'internal'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+      - 'fix'
+      - 'regression'
+  - title: '🧰 Maintenance'
+    labels:
+      - 'chore'
+      - 'refactor'
+      - 'deps'
+      - 'ci'
+  - title: '📝 Documentation'
+    labels:
+      - 'docs'
+change-template: '- $TITLE (#$PR_NUMBER) by @$AUTHOR'
+template: |
+  ## Changelog
+  $CHANGES
+
+  ## Contributors
+  Thanks to $CONTRIBUTORS for their contributions to this release!
+
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking-change'
+      - 'breaking'
+  minor:
+    labels:
+      - 'minor'
+      - 'feature'
+      - 'enhancement'
+  patch:
+    labels:
+      - 'patch'
+      - 'bug'
+      - 'fix'
+      - 'chore'
+      - 'deps'
+      - 'docs'
+  default: patch
+
+autolabeler:
+  - label: 'docs'
+    files:
+      - '**/*.md'
+    title:
+      - '/docs/i'
+  - label: 'deps'
+    title:
+      - '/deps?/i'
+      - '/dependency/i'
+    branch:
+      - '/dependabot/.+/'
+  - label: 'bug'
+    title:
+      - '/fix/i'
+      - '/bug/i'
+  - label: 'enhancement'
+    title:
+      - '/feat/i'
+      - '/feature/i'
+prerelease: false

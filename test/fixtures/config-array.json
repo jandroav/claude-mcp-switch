@@ -1,0 +1,18 @@
+{
+  "mcpServers": [
+    {
+      "id": "github",
+      "name": "GitHub MCP",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-github"],
+      "enabled": true
+    },
+    {
+      "id": "slack-mcp",
+      "name": "Slack Integration",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-slack"],
+      "enabled": false
+    }
+  ]
+}

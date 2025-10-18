@@ -18,6 +18,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,9 +55,12 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Publish GitHub Release (Release Drafter)
+        uses: release-drafter/release-drafter@v6
         with:
-          tag_name: v${{ steps.bump.outputs.version }}
+          publish: true
+          tag: v${{ steps.bump.outputs.version }}
           name: v${{ steps.bump.outputs.version }}
-          generate_release_notes: true
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

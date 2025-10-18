@@ -24,13 +24,44 @@ node ./src/ccmcp.js list --config ~/.claude/settings.json
 ```
 
 ### Testing
-Currently, there are no automated tests. When adding tests, they should cover:
-- Config path resolution across all platforms
-- Schema detection (object vs array, with/without enabled flags)
-- Identifier matching (id, key, name with case-insensitivity)
-- Enable/disable operations for both object and array schemas
-- Levenshtein distance suggestions
-- Atomic file writes and backup creation
+The project uses Node.js built-in test runner (Node 18+):
+
+```bash
+# Run all tests
+npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+
+# Watch mode (re-run on file changes)
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+```
+
+#### Test Structure
+- `test/unit/` - Unit tests for individual modules
+  - `utils.test.js` - Utility functions (expandHome, truncate, safeStr, etc.)
+  - `config.test.js` - Config resolution, file I/O, backup/atomic writes
+  - `schema.test.js` - Schema detection, server enumeration, enable/disable logic
+  - `matcher.test.js` - Identifier matching, Levenshtein distance, suggestions
+  - `ui.test.js` - Color utilities
+- `test/integration/` - End-to-end CLI tests
+  - `cli.test.js` - Full command execution with temp configs
+- `test/fixtures/` - Sample config files for testing
+
+#### Running Individual Tests
+```bash
+# Run specific test file
+node --test test/unit/utils.test.js
+
+# Run specific test suite
+node --test test/unit/config.test.js
+```
 
 ### Publishing
 The project uses a GitHub Actions workflow for versioning and publishing:
@@ -47,8 +78,17 @@ The workflow automatically:
 
 ## Architecture
 
-### Single-File Design
-All logic resides in `src/ccmcp.js` (830+ lines). This is intentional for zero-dependency distribution and simplicity.
+### Modular Design
+The codebase is organized into focused modules for testability:
+
+- `src/ccmcp.js` - CLI entry point and command orchestration (~220 lines)
+- `src/lib/utils.js` - Generic utilities (expandHome, truncate, safeStr, nowStamp, detectPlatform)
+- `src/lib/config.js` - Config discovery, file I/O, JSON operations, backup/atomic writes
+- `src/lib/schema.js` - Schema detection, server enumeration, enable/disable operations
+- `src/lib/matcher.js` - Identifier matching, Levenshtein distance, suggestion generation
+- `src/lib/ui.js` - ANSI color utilities, banner, table printing, help text
+
+This modular structure maintains zero external dependencies while enabling comprehensive unit testing.
 
 ### Core Flow
 1. **Argument Parsing** (`parseArgs`): Manual argv parsing with support for `--config`, `--json`, `--dry-run`, `--no-color`
