@@ -1,4 +1,4 @@
-# ccmcp - Claude Code MCP switcher
+# claude-mcp-switch - Claude Code MCP switcher
 
 A zero-dependency npx CLI to list, enable, and disable Claude Code/Claude Desktop MCP servers.
 Supports macOS, Linux, and Windows, with config discovery via CLAUDE_CONFIG_DIR or OS defaults.
@@ -18,18 +18,18 @@ Supports macOS, Linux, and Windows, with config discovery via CLAUDE_CONFIG_DIR 
 
 ## 🚀 Install / Use
 - **One-off via npx** (after publish):
-  - npx ccmcp list
-  - npx ccmcp enable github
-  - npx ccmcp disable my-mcp-id --dry-run
+  - npx claude-mcp-switch list
+  - npx claude-mcp-switch enable github
+  - npx claude-mcp-switch disable my-mcp-id --dry-run
 - **Global install via npm**:
-  1. Install globally: `npm install -g ccmcp`
+  1. Install globally: `npm install -g claude-mcp-switch`
   2. Use the tool: `ccmcp list`
   3. Enable MCP: `ccmcp enable github`
   4. Disable MCP: `ccmcp disable github`
 - **Local npx usage** (no installation required):
-  1. List servers: `npx ccmcp list`
-  2. Enable server: `npx ccmcp enable github`
-  3. Disable server: `npx ccmcp disable github --dry-run`
+  1. List servers: `npx claude-mcp-switch list`
+  2. Enable server: `npx claude-mcp-switch enable github`
+  3. Disable server: `npx claude-mcp-switch disable github --dry-run`
 - **Local development (no registry)**:
   1. Clone the repo locally:
      - `git clone <repo-url>` and `cd claude-mcp-switch`
@@ -116,20 +116,20 @@ If none found, exit 4 with guidance.
 
 ## 📝 Examples
 - List:
-  - npx ccmcp list
+  - npx claude-mcp-switch list
 - Disable by key:
-  - npx ccmcp disable github
+  - npx claude-mcp-switch disable github
 - Enable by id with dry-run:
-  - npx ccmcp enable my-mcp-id --dry-run
+  - npx claude-mcp-switch enable my-mcp-id --dry-run
 - Use custom config:
-  - npx ccmcp list --config ~/.claude/settings.json
+  - npx claude-mcp-switch list --config ~/.claude/settings.json
 
 ## 📊 JSON output
 - Example list:
-  - npx ccmcp list --json
+  - npx claude-mcp-switch list --json
   - Outputs array of { status, key, id, name, command, transport, container }
 - Example enable (dry-run):
-  - npx ccmcp enable github --dry-run --json
+  - npx claude-mcp-switch enable github --dry-run --json
   - Outputs planned changes and configPath
 
 ## 🔧 Troubleshooting
@@ -277,8 +277,8 @@ Automatically publishes to npm when you publish a GitHub release:
 #### Result:
 Users can install and run via npm/npx:
 ```bash
-npx ccmcp list
-npm i -g ccmcp && ccmcp list
+npx claude-mcp-switch list
+npm i -g claude-mcp-switch && ccmcp list
 ```
 
 #### Version Management:
@@ -340,6 +340,6 @@ Edit [.github/labeler.yml](.github/labeler.yml) to add file-based label rules.
 Add these badges to your README to show workflow status:
 
 ```markdown
-![CI](https://github.com/your-username/ccmcp/workflows/CI/badge.svg)
-![Release Drafter](https://github.com/your-username/ccmcp/workflows/Release%20Drafter/badge.svg)
+![CI](https://github.com/your-username/claude-mcp-switch/workflows/CI/badge.svg)
+![Release Drafter](https://github.com/your-username/claude-mcp-switch/workflows/Release%20Drafter/badge.svg)
 ```

@@ -1,5 +1,5 @@
 {
-  "name": "ccmcp",
+  "name": "claude-mcp-switch",
   "version": "0.1.0",
   "description": "npx CLI to list/enable/disable Claude Code MCP servers (macOS/Linux/Windows)",
   "bin": {
