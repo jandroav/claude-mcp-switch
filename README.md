@@ -3,6 +3,8 @@
 A zero-dependency npx CLI to list, enable, and disable Claude Code MCP servers.
 Uses the `claude` CLI under the hood to ensure compatibility with your actual running configuration.
 
+![](./doc/img/main.png)
+
 ## ✨ Features
 - List active and disabled MCP servers (powered by `claude mcp list`)
 - Enable/disable servers by name
@@ -18,19 +20,15 @@ Uses the `claude` CLI under the hood to ensure compatibility with your actual ru
 - At least one MCP server configured in Claude Code
 
 ## 🚀 Install / Use
-- **One-off via npx** (after publish):
-  - npx claude-mcp-switch list
-  - npx claude-mcp-switch enable github
-  - npx claude-mcp-switch disable my-mcp-id --dry-run
+- **Local npx usage** (no installation required):
+  1. List servers: `npx claude-mcp-switch list`
+  2. Enable server: `npx claude-mcp-switch enable github`
+  3. Disable server: `npx claude-mcp-switch disable github --dry-run`
 - **Global install via npm**:
   1. Install globally: `npm install -g claude-mcp-switch`
   2. Use the tool: `ccmcp list`
   3. Enable MCP: `ccmcp enable github`
   4. Disable MCP: `ccmcp disable github`
-- **Local npx usage** (no installation required):
-  1. List servers: `npx claude-mcp-switch list`
-  2. Enable server: `npx claude-mcp-switch enable github`
-  3. Disable server: `npx claude-mcp-switch disable github --dry-run`
 - **Local development (no registry)**:
   1. Clone the repo locally:
      - `git clone <repo-url>` and `cd claude-mcp-switch`
@@ -60,10 +58,13 @@ Uses the `claude` CLI under the hood to ensure compatibility with your actual ru
 - list [--json] [--no-color]
   - Prints a colorized, boxed table with STATUS, NAME, TRANSPORT, COMMAND/URL
   - Shows both active (from `claude mcp list`) and disabled servers (from local storage)
+  ![](./doc/img/list.png)
 - enable <name> [--dry-run] [--json] [--no-color]
   - Re-enables a previously disabled server by restoring its configuration
+  ![](./doc/img/enable.png)
 - disable <name> [--dry-run] [--json] [--no-color]
   - Disables a server by removing it via `claude mcp remove` and storing its config for later re-enabling
+  ![](./doc/img/disable.png)
 - --help, --version
 
 ## 🎯 How it works
