@@ -3,8 +3,6 @@
 A zero-dependency npx CLI to list, enable, and disable Claude Code MCP servers.
 Uses the `claude` CLI under the hood to ensure compatibility with your actual running configuration.
 
-![](./doc/img/main.png)
-
 ## ✨ Features
 
 - List active and disabled MCP servers (powered by `claude mcp list`)
